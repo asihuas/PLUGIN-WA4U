@@ -303,7 +303,8 @@
 /* ============================
    FORMULARIO DE CHAT
 ============================ */
-.openai-chat-form textarea {
+.openai-chat-form textarea,
+.openai-chat-form-logged-out textarea {
   resize: none;
   line-height: 1.4;
   overflow-y: hidden;
@@ -312,35 +313,43 @@
   outline: none !important;
 }
 
-.openai-chat-form textarea::-webkit-input-placeholder {
+.openai-chat-form textarea::-webkit-input-placeholder,
+.openai-chat-form-logged-out textarea::-webkit-input-placeholder {
   line-height: 24px;
 }
 
-.openai-chat-form textarea::-moz-placeholder {
+.openai-chat-form textarea::-moz-placeholder,
+.openai-chat-form-logged-out textarea::-moz-placeholder {
   line-height: 24px;
 }
 
-.openai-chat-form textarea:-ms-input-placeholder {
+.openai-chat-form textarea:-ms-input-placeholder,
+.openai-chat-form-logged-out textarea:-ms-input-placeholder {
   line-height: 24px;
 }
 
-.openai-chat-form textarea::-ms-input-placeholder {
+.openai-chat-form textarea::-ms-input-placeholder,
+.openai-chat-form-logged-out textarea::-ms-input-placeholder {
   line-height: 24px;
 }
 
-.openai-chat-form textarea::placeholder {
+.openai-chat-form textarea::placeholder,
+.openai-chat-form-logged-out textarea::placeholder {
   line-height: 24px;
 }
 
-.openai-chat-form textarea:-moz-placeholder-shown {
+.openai-chat-form textarea:-moz-placeholder-shown,
+.openai-chat-form-logged-out textarea:-moz-placeholder-shown {
   line-height: 24px;
 }
 
-.openai-chat-form textarea:-ms-input-placeholder {
+.openai-chat-form textarea:-ms-input-placeholder,
+.openai-chat-form-logged-out textarea:-ms-input-placeholder {
   line-height: 24px;
 }
 
-.openai-chat-form textarea:placeholder-shown {
+.openai-chat-form textarea:placeholder-shown,
+.openai-chat-form-logged-out textarea:placeholder-shown {
   line-height: 24px;
 }
 
@@ -736,4 +745,30 @@ ul.am-agent-list li:first-child {
 @keyframes am-typing {
   0%,80%,100% { opacity: .2; transform: translateY(0); }
   40% { opacity: 1; transform: translateY(-3px); }
+}
+
+.am-coach-note {
+  font-size: 12px;
+  color: #555;
+  margin-top: 6px;
+  display: flex;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.am-coach-note .am-coach-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 0 0 0 4px;
+}
+
+.am-coach-note .am-coach-full {
+  display: none;
+}
+
+.am-coach-note.expanded .am-coach-full {
+  display: inline;
 }

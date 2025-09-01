@@ -20,6 +20,20 @@
     const voiceBtn= root.querySelector('#openai-voice-btn');
     if (voiceBtn) voiceBtn.setAttribute('type', 'button');
 
+    const disclaimer = root.querySelector('.am-coach-note');
+    if (disclaimer) {
+      const full = disclaimer.querySelector('.am-coach-full');
+      const toggle = disclaimer.querySelector('.am-coach-toggle');
+      if (full && toggle) {
+        full.style.display = 'none';
+        toggle.addEventListener('click', () => {
+          const expanded = disclaimer.classList.toggle('expanded');
+          full.style.display = expanded ? '' : 'none';
+          toggle.innerHTML = expanded ? '\u25B2' : '\u25BC';
+        });
+      }
+    }
+
     const agentId       = parseInt(root.dataset.agentId || '0', 10);
     let convUid         = String(root.dataset.convUid || '');
     const assistantName = root.dataset.assistantName || 'Assistant';
@@ -169,8 +183,9 @@
       toggleCallBtn();
     }
 
-    if (voiceBtn && navigator.mediaDevices) {
+    if (voiceBtn && (navigator.mediaDevices || window.SpeechRecognition || window.webkitSpeechRecognition)) {
       let mediaRecorder = null;
+      let sr = null;
       let chunks = [];
       let isRecording = false;
       let micStream = null;
@@ -186,6 +201,38 @@
 
       async function startRecording() {
         if (isRecording) return;
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SR) {
+          sr = new SR();
+          sr.lang = root.dataset.sttLang || 'en-US';
+          sr.interimResults = false;
+          sr.onresult = (e) => {
+            const text = (e.results[0][0]?.transcript || '').trim();
+            if (text) {
+              const pre = input.value ? input.value + ' ' : '';
+              input.value = pre + text;
+              autosize();
+            }
+          };
+          sr.onerror = (e) => console.error('SR error:', e);
+          sr.onend = () => {
+            if (sttOverlay) sttOverlay.style.display = 'none';
+            if (voiceBtn) voiceBtn.style.display = '';
+            if (sendBtn) sendBtn.style.display = '';
+            updateVoiceBtn('idle');
+            if (callBtn) callBtn.style.display = 'none';
+            sr = null;
+            isRecording = false;
+          };
+          isRecording = true;
+          updateVoiceBtn('listening');
+          if (sttOverlay) { sttOverlay.innerHTML = 'Listening...'; sttOverlay.style.display = 'flex'; }
+          if (voiceBtn) voiceBtn.style.display = 'none';
+          if (sendBtn) sendBtn.style.display = 'none';
+          if (callBtn) callBtn.style.display = 'none';
+          sr.start();
+          return;
+        }
         chunks = [];
         if (micStream) {
           try { micStream.getTracks().forEach((t) => t.stop()); } catch (_) {}
@@ -274,9 +321,13 @@
       }
 
       function stopRecording() {
-        if (!isRecording || !mediaRecorder) return;
+        if (!isRecording) return;
         isRecording = false;
-        mediaRecorder.stop();
+        if (sr) {
+          try { sr.stop(); } catch (_) {}
+          return;
+        }
+        if (mediaRecorder) mediaRecorder.stop();
       }
 
       voiceBtn.addEventListener('click', (e) => {

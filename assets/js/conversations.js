@@ -72,6 +72,7 @@
           existing.classList.add('pinned');
           const btn = existing.querySelector('.am-pin-btn');
           if (btn) btn.innerHTML = PIN_ICON + 'Unpin';
+          list.insertBefore(existing, list.firstChild);
           return;
         }
         const li = document.createElement('li');

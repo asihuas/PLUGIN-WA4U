@@ -54,6 +54,7 @@ add_shortcode('am_chat', function(){
     $user_name = $cu->display_name ?: $cu->user_login;
     $user_email = $cu->user_email;
   }
+  $form_class = is_user_logged_in() ? 'openai-chat-form' : 'openai-chat-form-logged-out';
   ob_start(); ?>
   <div id="amc-<?php echo esc_attr($uid); ?>" class="openai-chat-container"
        data-agent-id="<?php echo esc_attr($agent_id); ?>"
@@ -81,7 +82,7 @@ add_shortcode('am_chat', function(){
       </div>
     </div>
     <div id="openai-messages" class="openai-messages"></div>
-    <form id="openai-chat-form" class="openai-chat-form" autocomplete="off" onsubmit="return false;">
+    <form id="openai-chat-form" class="<?php echo esc_attr($form_class); ?>" autocomplete="off" onsubmit="return false;">
       <div class="openai-input-group">
         <div class="openai-input-inner">
           <textarea id="openai-message-input" name="message" rows="1" required placeholder="Type your message…"></textarea>
@@ -93,6 +94,11 @@ add_shortcode('am_chat', function(){
 <path d="M32.2957 28.5096L27.305 29.484C23.9339 27.7792 21.8516 25.8209 20.6397 22.7683L21.5728 17.7253L19.809 13H15.2633C13.8969 13 12.8208 14.1377 13.0249 15.4991C13.5344 18.8976 15.0366 25.0596 19.4278 29.484C24.0392 34.1303 30.6809 36.1465 34.3363 36.9479C35.7479 37.2574 37 36.1479 37 34.6924V30.3158L32.2957 28.5096Z" stroke="#3A354E" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
 </button>
+      </div>
+      <div class="am-coach-note">
+        <span class="am-coach-short">This is an AI-based life coach, trained on modern psychology.</span>
+        <span class="am-coach-full"> It’s not therapy or a substitute for professional care. But it can help you move forward — one real step at a time.</span>
+        <button type="button" class="am-coach-toggle" aria-label="Toggle disclaimer">&#x25BC;</button>
       </div>
       <input type="hidden" name="agent_id" value="<?php echo esc_attr($agent_id); ?>">
     </form>
@@ -139,6 +145,7 @@ add_shortcode('am_chat', function(){
       });
       let busy = false;
       let mediaRecorder = null;
+      let sr = null;
       let currentAudio = null;
       let pendingChunk = null;
       let mime = 'audio/webm';
@@ -393,6 +400,9 @@ add_shortcode('am_chat', function(){
           if (!r.ok) {
             const txt = await r.text();
             console.error('STT HTTP error', r.status, txt);
+            logMessage('system', 'STT error');
+            try { mediaRecorder && mediaRecorder.stop(); } catch(_){}
+            if (overlay.style.display === 'grid' && !micMuted) startRecognition();
             return;
           }
           const j = await r.json();
@@ -402,13 +412,15 @@ add_shortcode('am_chat', function(){
           }
         } catch(err){
           logMessage('system', 'STT error');
+          try { mediaRecorder && mediaRecorder.stop(); } catch(_){}
+          if (overlay.style.display === 'grid' && !micMuted) startRecognition();
         }
         if (pendingChunk && !busy) {
           const b = pendingChunk; pendingChunk = null; await processChunk(b);
         }
       }
 
-      async function startRecognition(){
+      async function startWhisperRecognition(){
         if (!navigator.mediaDevices || !window.MediaRecorder) {
           logMessage('system', 'MediaRecorder not supported in this browser.');
           return;
@@ -418,7 +430,6 @@ add_shortcode('am_chat', function(){
           if (!micAnalyser) await initMicMonitor();
           startMicViz();
           mime = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
-          lang = document.querySelector('.openai-chat-container')?.dataset?.sttLang || 'en-US';
           mediaRecorder = new MediaRecorder(stream, { mimeType: mime });
           mediaRecorder.ondataavailable = async (e) => {
             if (!e.data || e.data.size === 0) return;
@@ -435,6 +446,42 @@ add_shortcode('am_chat', function(){
         } catch(_) {
           logMessage('system', 'Could not start STT.');
         }
+      }
+
+      async function startRecognition(){
+        lang = document.querySelector('.openai-chat-container')?.dataset?.sttLang || 'en-US';
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SR) {
+          try {
+            sr = new SR();
+            sr.lang = lang;
+            sr.interimResults = false;
+            sr.onresult = async (e) => {
+              const text = (e.results[0][0]?.transcript || '').trim();
+              if (text) {
+                setState('Processing');
+                await askAssistant(text, true);
+              }
+            };
+            sr.onerror = () => {
+              logMessage('system', 'STT error');
+              sr = null;
+              startWhisperRecognition();
+            };
+            sr.onend = () => {
+              sr = null;
+              if (overlay.style.display === 'grid' && !micMuted && !busy) {
+                startRecognition();
+              }
+            };
+            setState('Listening');
+            sr.start();
+            return;
+          } catch(_) {
+            sr = null;
+          }
+        }
+        await startWhisperRecognition();
       }
 
       btn.addEventListener('click', function(){
@@ -455,10 +502,17 @@ add_shortcode('am_chat', function(){
         }
         muteBtn.classList.toggle('muted', micMuted);
         muteBtn.setAttribute('aria-label', micMuted ? 'Unmute Microphone' : 'Mute Microphone');
-        if (mediaRecorder && mediaRecorder.state === 'recording' && micMuted){
-          try { mediaRecorder.pause(); } catch(_) {}
-        } else if (mediaRecorder && mediaRecorder.state === 'paused' && !micMuted){
-          try { mediaRecorder.resume(); } catch(_) {}
+        if (micMuted){
+          if (sr){ try { sr.stop(); } catch(_){} }
+          if (mediaRecorder && mediaRecorder.state === 'recording'){
+            try { mediaRecorder.pause(); } catch(_) {}
+          }
+        } else {
+          if (mediaRecorder && mediaRecorder.state === 'paused'){
+            try { mediaRecorder.resume(); } catch(_) {}
+          } else if (!mediaRecorder && !sr){
+            startRecognition();
+          }
         }
         if (mediaRecorder && mediaRecorder.stream){
           mediaRecorder.stream.getTracks().forEach(t=> t.enabled = !micMuted);
@@ -477,6 +531,7 @@ add_shortcode('am_chat', function(){
         btn.style.display = 'inline-block';
         setState('Idle');
         try { mediaRecorder && mediaRecorder.stop(); } catch(_) {}
+        try { sr && sr.stop(); } catch(_) {}
         if (micVizInterval){ clearInterval(micVizInterval); micVizInterval=null; }
         if (ttsVizInterval){ clearInterval(ttsVizInterval); ttsVizInterval=null; }
         if (ttsCtx){ ttsCtx.close().catch(()=>{}); ttsCtx=null; }
