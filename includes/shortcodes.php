@@ -301,7 +301,7 @@ add_shortcode('am_chat', function(){
 
                   // ✅ Re-enciende el medidor y garantiza recorder activo
                   if (!micMuted) startMicViz();
-                  if (!mediaRecorder || mediaRecorder.state !== 'recording') {
+                  if (overlay.style.display === 'grid' && !micMuted && (!mediaRecorder || mediaRecorder.state !== 'recording')) {
                     startRecognition();
                   }
                 }
@@ -321,7 +321,7 @@ add_shortcode('am_chat', function(){
               if (overlay.style.display !== 'none' && !micMuted) startMicViz();
 
               // ✅ Asegura que seguimos grabando tras TTS
-              if (!mediaRecorder || mediaRecorder.state !== 'recording') {
+              if (overlay.style.display === 'grid' && !micMuted && (!mediaRecorder || mediaRecorder.state !== 'recording')) {
                 startRecognition();
               }
 
@@ -374,7 +374,7 @@ add_shortcode('am_chat', function(){
           setState('Idle');
         }
         busy = false;
-        if (!mediaRecorder || mediaRecorder.state !== 'recording') {
+        if (overlay.style.display === 'grid' && !micMuted && (!mediaRecorder || mediaRecorder.state !== 'recording')) {
           startRecognition();
         }
         if (pendingChunk && !busy) {
@@ -450,38 +450,6 @@ add_shortcode('am_chat', function(){
 
       async function startRecognition(){
         lang = document.querySelector('.openai-chat-container')?.dataset?.sttLang || 'en-US';
-        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (SR) {
-          try {
-            sr = new SR();
-            sr.lang = lang;
-            sr.interimResults = false;
-            sr.continuous = true;
-            sr.onresult = async (e) => {
-              const text = (e.results[0][0]?.transcript || '').trim();
-              if (text) {
-                setState('Processing');
-                await askAssistant(text, true);
-              }
-            };
-            sr.onerror = () => {
-              logMessage('system', 'STT error');
-              sr = null;
-              startWhisperRecognition();
-            };
-            sr.onend = () => {
-              sr = null;
-              if (overlay.style.display === 'grid' && !micMuted && !busy) {
-                startRecognition();
-              }
-            };
-            setState('Listening');
-            sr.start();
-            return;
-          } catch(_) {
-            sr = null;
-          }
-        }
         await startWhisperRecognition();
       }
 
