@@ -29,7 +29,6 @@
         toggle.addEventListener('click', () => {
           const expanded = disclaimer.classList.toggle('expanded');
           full.style.display = expanded ? '' : 'none';
-          toggle.innerHTML = expanded ? '\u25B2' : '\u25BC';
         });
       }
     }

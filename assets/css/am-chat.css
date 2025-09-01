@@ -479,16 +479,15 @@
 
 .am-voice-call-overlay .am-voice-level {
   position: absolute;
-  top: 50%;
+  bottom: 0;
   left: 50%;
-  width: 160px;
+  width: 100%;
   height: 160px;
-  border-radius: 50%;
-  background: -o-radial-gradient(circle, #B3AAE4 0%, rgb(91 80 134) 50%, rgb(91 80 134) 100%);
+  border-radius: 0;
   background: radial-gradient(circle, #B3AAE4 0%, rgb(91 80 134) 50%, rgb(91 80 134) 100%);
-  -webkit-transform: translate(-50%, -50%) scale(1);
-      -ms-transform: translate(-50%, -50%) scale(1);
-          transform: translate(-50%, -50%) scale(1);
+  -webkit-transform: translateX(-50%) scale(1);
+      -ms-transform: translateX(-50%) scale(1);
+          transform: translateX(-50%) scale(1);
   -webkit-transition: -webkit-transform .2s;
   transition: -webkit-transform .2s;
   -o-transition: transform .2s;
@@ -752,17 +751,25 @@ ul.am-agent-list li:first-child {
   color: #555;
   margin-top: 6px;
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
-  align-items: flex-start;
+  align-items: center;
 }
 
 .am-coach-note .am-coach-toggle {
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 12px;
   line-height: 1;
-  padding: 0 0 0 4px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+}
+
+.am-coach-note .am-coach-icon {
+  width: 10px;
+  height: 10px;
+  transition: transform .2s;
 }
 
 .am-coach-note .am-coach-full {
@@ -771,4 +778,8 @@ ul.am-agent-list li:first-child {
 
 .am-coach-note.expanded .am-coach-full {
   display: inline;
+}
+
+.am-coach-note.expanded .am-coach-icon {
+  transform: rotate(180deg);
 }

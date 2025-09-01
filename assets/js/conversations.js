@@ -225,6 +225,8 @@
           const updated = pins.filter(p => String(p.id) !== String(id));
           savePins(updated);
           item.classList.remove('pinned');
+          const list = item.parentElement;
+          if (list) list.appendChild(item);
         } else {
           const data = {
             id,
