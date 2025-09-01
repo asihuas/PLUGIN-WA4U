@@ -214,7 +214,12 @@
             }
           };
           sr.onerror = (e) => console.error('SR error:', e);
+          sr.continuous = true;
           sr.onend = () => {
+            if (isRecording) {
+              try { sr.start(); } catch (_) {}
+              return;
+            }
             if (sttOverlay) sttOverlay.style.display = 'none';
             if (voiceBtn) voiceBtn.style.display = '';
             if (sendBtn) sendBtn.style.display = '';
