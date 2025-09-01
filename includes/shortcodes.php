@@ -377,14 +377,24 @@ add_shortcode('am_chat', function(){
 
       async function processChunk(blob){
         const fd = new FormData();
-        fd.append('file', blob, `chunk.${mime === 'audio/webm' ? 'webm' : 'mp4'}`);
-        fd.append('language', lang);
+        const ext  = mime === 'audio/webm' ? 'webm' : 'mp4';
+        const file = new File([blob], `chunk.${ext}`, { type: mime });
+        fd.append('file', file);
+        if (lang) {
+          fd.append('language', lang.split('-')[0].toLowerCase());
+        }
         try {
           const r = await fetch(REST + 'am/v1/stt', {
             method: 'POST',
             body: fd,
-            headers: { 'X-WP-Nonce': NONCE }
+            headers: { 'X-WP-Nonce': NONCE },
+            credentials: 'same-origin'
           });
+          if (!r.ok) {
+            const txt = await r.text();
+            console.error('STT HTTP error', r.status, txt);
+            return;
+          }
           const j = await r.json();
           if (j && j.text) {
             setState('Processing');
