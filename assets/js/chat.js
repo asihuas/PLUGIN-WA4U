@@ -226,7 +226,6 @@
           isRecording = true;
           updateVoiceBtn('listening');
           if (sttOverlay) { sttOverlay.innerHTML = 'Listening...'; sttOverlay.style.display = 'flex'; }
-          if (voiceBtn) voiceBtn.style.display = 'none';
           if (sendBtn) sendBtn.style.display = 'none';
           if (callBtn) callBtn.style.display = 'none';
           sr.start();
@@ -323,6 +322,15 @@
         if (!isRecording) return;
         isRecording = false;
         if (sr) {
+          if (sttOverlay) {
+            sttOverlay.innerHTML = transcribingImg
+              ? `<img src="${transcribingImg}" alt="Transcribing...">`
+              : 'Thinking...';
+            sttOverlay.style.display = 'flex';
+          }
+          if (voiceBtn) voiceBtn.style.display = 'none';
+          if (sendBtn) sendBtn.style.display = 'none';
+          if (callBtn) callBtn.style.display = 'none';
           try { sr.stop(); } catch (_) {}
           return;
         }
