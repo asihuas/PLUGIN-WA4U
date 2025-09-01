@@ -95,11 +95,11 @@ add_shortcode('am_chat', function(){
 </svg>
 </button>
       </div>
-      <div class="am-coach-note">
-        <span class="am-coach-short">This is an AI-based life coach, trained on modern psychology.</span>
-        <span class="am-coach-full"> It’s not therapy or a substitute for professional care. But it can help you move forward — one real step at a time.</span>
-        <button type="button" class="am-coach-toggle" aria-label="Toggle disclaimer">&#x25BC;</button>
-      </div>
+        <p class="am-coach-note">
+          <span class="am-coach-short">This is an AI-based life coach, trained on modern psychology…</span>
+          <span class="am-coach-full"> It’s not therapy or a substitute for professional care. But it can help you move forward — one real step at a time.</span>
+          <button type="button" class="am-coach-toggle" aria-label="Toggle disclaimer"><img src="https://wa4u.ai/wp-content/uploads/2025/08/nav-arrow-down.svg" alt="Toggle" class="am-coach-icon"></button>
+        </p>
       <input type="hidden" name="agent_id" value="<?php echo esc_attr($agent_id); ?>">
     </form>
 
@@ -194,9 +194,9 @@ add_shortcode('am_chat', function(){
         if (!micAnalyser || !levelCircle) return;
         if (micVizInterval) clearInterval(micVizInterval);
         micVizInterval = setInterval(()=>{
-          const lvl = micLevel();
-          const scale = 1 + Math.min(0.3, lvl*2);
-          levelCircle.style.transform = `translate(-50%, -50%) scale(${scale.toFixed(2)})`;
+            const lvl = micLevel();
+            const scale = 1 + Math.min(0.3, lvl*2);
+            levelCircle.style.transform = `translateX(-50%) scale(${scale.toFixed(2)})`;
         },100);
       }
 
@@ -216,16 +216,16 @@ add_shortcode('am_chat', function(){
         ttsAnalyser.connect(ttsCtx.destination);
         ttsData = new Uint8Array(ttsAnalyser.fftSize);
         ttsVizInterval = setInterval(()=>{
-          ttsAnalyser.getByteTimeDomainData(ttsData);
-          let sum = 0;
-          for (let i=0;i<ttsData.length;i++){ const v = (ttsData[i]-128)/128; sum += v*v; }
-          const lvl = Math.sqrt(sum/ttsData.length);
-          const scale = 1 + Math.min(0.3, lvl*2);
-          levelCircle.style.transform = `translate(-50%, -50%) scale(${scale.toFixed(2)})`;
+            ttsAnalyser.getByteTimeDomainData(ttsData);
+            let sum = 0;
+            for (let i=0;i<ttsData.length;i++){ const v = (ttsData[i]-128)/128; sum += v*v; }
+            const lvl = Math.sqrt(sum/ttsData.length);
+            const scale = 1 + Math.min(0.3, lvl*2);
+            levelCircle.style.transform = `translateX(-50%) scale(${scale.toFixed(2)})`;
         },100);
         const clear = () => {
-          clearInterval(ttsVizInterval); ttsVizInterval=null; levelCircle.style.transform='translate(-50%, -50%) scale(1)';
-          if (ttsCtx) {
+            clearInterval(ttsVizInterval); ttsVizInterval=null; levelCircle.style.transform='translateX(-50%) scale(1)';
+            if (ttsCtx) {
             ttsCtx.close().catch(()=>{});
             ttsCtx = null;
           }
@@ -456,6 +456,7 @@ add_shortcode('am_chat', function(){
             sr = new SR();
             sr.lang = lang;
             sr.interimResults = false;
+            sr.continuous = true;
             sr.onresult = async (e) => {
               const text = (e.results[0][0]?.transcript || '').trim();
               if (text) {
@@ -536,7 +537,7 @@ add_shortcode('am_chat', function(){
         if (ttsVizInterval){ clearInterval(ttsVizInterval); ttsVizInterval=null; }
         if (ttsCtx){ ttsCtx.close().catch(()=>{}); ttsCtx=null; }
         if (avatarImg) avatarImg.style.transform='scale(1)';
-        if (levelCircle) levelCircle.style.transform='translate(-50%, -50%) scale(1)';
+        if (levelCircle) levelCircle.style.transform='translateX(-50%) scale(1)';
         if (micStream){ micStream.getTracks().forEach(t=>t.stop()); micStream=null; }
         if (mediaRecorder && mediaRecorder.stream){ mediaRecorder.stream.getTracks().forEach(t=> t.stop()); }
         mediaRecorder = null;
