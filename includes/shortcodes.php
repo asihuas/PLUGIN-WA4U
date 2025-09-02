@@ -270,18 +270,46 @@ add_shortcode('am_chat', function(){
         if (root && root.AM_scrollToBottom) root.AM_scrollToBottom(true);
       }
 
+      let ttsController = null;
       async function ttsPlay(text){
         if (micVizInterval){ clearInterval(micVizInterval); micVizInterval=null; }
+
+        // Abort any previous TTS request
+        if (ttsController) { ttsController.abort(); }
+        ttsController = new AbortController();
+
         const r = await fetch(REST + 'am/v1/tts', {
           method: 'POST',
           headers: { 'Content-Type':'application/json','X-WP-Nonce': NONCE },
-          body: JSON.stringify({ text, voice_id: voiceId, agent_id: agentId })
+          body: JSON.stringify({ text, voice_id: voiceId, agent_id: agentId }),
+          signal: ttsController.signal
         });
-        const blob = await r.blob();
-        if (!blob || !blob.size) return;
-        const url = URL.createObjectURL(blob);
-        const audio = new Audio(url);
+
+        if (!r.ok || !r.body) return;
+
+        const mediaSource = new MediaSource();
+        const audio = new Audio();
+        audio.src = URL.createObjectURL(mediaSource);
         currentAudio = audio;
+
+        mediaSource.addEventListener('sourceopen', () => {
+          const sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
+          const reader = r.body.getReader();
+          const pump = () => {
+            reader.read().then(({done, value}) => {
+              if (done) {
+                if (!sourceBuffer.updating) mediaSource.endOfStream();
+                else sourceBuffer.addEventListener('updateend', () => mediaSource.endOfStream(), {once:true});
+                return;
+              }
+              sourceBuffer.appendBuffer(value);
+              if (!sourceBuffer.updating) pump();
+              else sourceBuffer.addEventListener('updateend', pump, {once:true});
+            });
+          };
+          pump();
+        }, {once:true});
+
         startTtsViz(audio);
 
         if (!micAnalyser) await initMicMonitor();
@@ -290,21 +318,20 @@ add_shortcode('am_chat', function(){
           let over = 0;
           micInterval = setInterval(()=>{
             const lvl = micLevel();
-            if (lvl > 0.2) {
+            if (lvl > 0.15) {
               over++;
-                if (over >= 8 && !audio.paused) {
-                  audio.pause();
-                  audio.currentTime = 0;
-                  currentAudio = null;
-                  clearInterval(micInterval);
-                  setState('Listening');
-
-                  // ✅ Re-enciende el medidor y garantiza recorder activo
-                  if (!micMuted) startMicViz();
-                  if (overlay.style.display === 'grid' && !micMuted && (!mediaRecorder || mediaRecorder.state !== 'recording')) {
-                    startRecognition();
-                  }
+              if (over >= 3 && !audio.paused) {
+                audio.pause();
+                audio.currentTime = 0;
+                if (ttsController) ttsController.abort();
+                currentAudio = null;
+                clearInterval(micInterval);
+                setState('Listening');
+                if (!micMuted) startMicViz();
+                if (overlay.style.display === 'grid' && !micMuted && (!mediaRecorder || mediaRecorder.state !== 'recording')) {
+                  startRecognition();
                 }
+              }
             } else {
               over = 0;
             }
@@ -313,21 +340,15 @@ add_shortcode('am_chat', function(){
         }
 
         await new Promise((resolve) => {
-            audio.addEventListener('ended', () => {
-              URL.revokeObjectURL(url);
-              if (micInterval) clearInterval(micInterval);
-
-              // ✅ El overlay se abre con 'grid', no 'block'
-              if (overlay.style.display !== 'none' && !micMuted) startMicViz();
-
-              // ✅ Asegura que seguimos grabando tras TTS
-              if (overlay.style.display === 'grid' && !micMuted && (!mediaRecorder || mediaRecorder.state !== 'recording')) {
-                startRecognition();
-              }
-
-              currentAudio = null;
-              resolve();
-            }, { once: true });
+          audio.addEventListener('ended', () => {
+            if (micInterval) clearInterval(micInterval);
+            if (overlay.style.display !== 'none' && !micMuted) startMicViz();
+            if (overlay.style.display === 'grid' && !micMuted && (!mediaRecorder || mediaRecorder.state !== 'recording')) {
+              startRecognition();
+            }
+            currentAudio = null;
+            resolve();
+          }, { once: true });
           audio.play().catch(() => { resolve(); });
         });
       }
@@ -511,6 +532,7 @@ add_shortcode('am_chat', function(){
         mediaRecorder = null;
         pendingChunk = null;
         if (micCtx){ try{ micCtx.close(); } catch(_){} micCtx=null; micAnalyser=null; }
+        if (ttsController) { ttsController.abort(); ttsController = null; }
         if (currentAudio) { currentAudio.pause(); currentAudio.currentTime = 0; currentAudio = null; }
         micMuted = false;
         if (muteBtn){
