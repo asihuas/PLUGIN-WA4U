@@ -182,9 +182,8 @@
       toggleCallBtn();
     }
 
-    if (voiceBtn && (navigator.mediaDevices || window.SpeechRecognition || window.webkitSpeechRecognition)) {
+    if (voiceBtn && navigator.mediaDevices) {
       let mediaRecorder = null;
-      let sr = null;
       let chunks = [];
       let isRecording = false;
       let micStream = null;
@@ -200,42 +199,6 @@
 
       async function startRecording() {
         if (isRecording) return;
-        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (SR) {
-          sr = new SR();
-          sr.lang = root.dataset.sttLang || 'en-US';
-          sr.interimResults = false;
-          sr.onresult = (e) => {
-            const text = (e.results[0][0]?.transcript || '').trim();
-            if (text) {
-              const pre = input.value ? input.value + ' ' : '';
-              input.value = pre + text;
-              autosize();
-            }
-          };
-          sr.onerror = (e) => console.error('SR error:', e);
-          sr.continuous = true;
-          sr.onend = () => {
-            if (isRecording) {
-              try { sr.start(); } catch (_) {}
-              return;
-            }
-            if (sttOverlay) sttOverlay.style.display = 'none';
-            if (voiceBtn) voiceBtn.style.display = '';
-            if (sendBtn) sendBtn.style.display = '';
-            updateVoiceBtn('idle');
-            if (callBtn) callBtn.style.display = 'none';
-            sr = null;
-            isRecording = false;
-          };
-          isRecording = true;
-          updateVoiceBtn('listening');
-          if (sttOverlay) { sttOverlay.innerHTML = 'Listening...'; sttOverlay.style.display = 'flex'; }
-          if (sendBtn) sendBtn.style.display = 'none';
-          if (callBtn) callBtn.style.display = 'none';
-          sr.start();
-          return;
-        }
         chunks = [];
         if (micStream) {
           try { micStream.getTracks().forEach((t) => t.stop()); } catch (_) {}
@@ -326,19 +289,6 @@
       function stopRecording() {
         if (!isRecording) return;
         isRecording = false;
-        if (sr) {
-          if (sttOverlay) {
-            sttOverlay.innerHTML = transcribingImg
-              ? `<img src="${transcribingImg}" alt="Transcribing...">`
-              : 'Thinking...';
-            sttOverlay.style.display = 'flex';
-          }
-          if (voiceBtn) voiceBtn.style.display = 'none';
-          if (sendBtn) sendBtn.style.display = 'none';
-          if (callBtn) callBtn.style.display = 'none';
-          try { sr.stop(); } catch (_) {}
-          return;
-        }
         if (mediaRecorder) mediaRecorder.stop();
       }
 
