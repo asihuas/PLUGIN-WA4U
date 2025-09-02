@@ -165,6 +165,26 @@ add_shortcode('am_chat', function(){
       let ttsData = null;
       let ttsVizInterval = null;
 
+      function stopAllMedia(){
+        try { mediaRecorder && mediaRecorder.stop(); } catch(_) {}
+        if (mediaRecorder && mediaRecorder.stream){
+          mediaRecorder.stream.getTracks().forEach(t => t.stop());
+        }
+        mediaRecorder = null;
+        try { sr && sr.stop(); sr && sr.abort && sr.abort(); } catch(_) {}
+        sr = null;
+        if (micVizInterval){ clearInterval(micVizInterval); micVizInterval = null; }
+        if (ttsVizInterval){ clearInterval(ttsVizInterval); ttsVizInterval = null; }
+        if (ttsCtx){ ttsCtx.close().catch(()=>{}); ttsCtx = null; }
+        if (micCtx){ try{ micCtx.close(); } catch(_){} micCtx = null; micAnalyser = null; }
+        if (micStream){ micStream.getTracks().forEach(t=>t.stop()); micStream = null; }
+        if (currentAudio){ currentAudio.pause(); currentAudio.currentTime = 0; currentAudio = null; }
+        if (ttsController){ ttsController.abort(); ttsController = null; }
+        pendingChunk = null;
+      }
+
+      window.addEventListener('beforeunload', stopAllMedia);
+
       async function initMicMonitor(){
         try {
           const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation:true, noiseSuppression:true, autoGainControl:true } });
@@ -273,6 +293,8 @@ add_shortcode('am_chat', function(){
       let ttsController = null;
       async function ttsPlay(text){
         if (micVizInterval){ clearInterval(micVizInterval); micVizInterval=null; }
+        if (sr){ try { sr.stop(); } catch(_){} }
+        if (mediaRecorder && mediaRecorder.state === 'recording'){ try { mediaRecorder.pause(); } catch(_){} }
 
         // Abort any previous TTS request
         if (ttsController) { ttsController.abort(); }
@@ -328,8 +350,10 @@ add_shortcode('am_chat', function(){
                 clearInterval(micInterval);
                 setState('Listening');
                 if (!micMuted) startMicViz();
-                if (overlay.style.display === 'grid' && !micMuted && (!mediaRecorder || mediaRecorder.state !== 'recording')) {
-                  startRecognition();
+                if (overlay.style.display === 'grid' && !micMuted) {
+                  if (sr) { try { sr.start(); } catch(_){} }
+                  else if (mediaRecorder && mediaRecorder.state === 'paused') { try { mediaRecorder.resume(); } catch(_){} }
+                  else { startRecognition(); }
                 }
               }
             } else {
@@ -343,8 +367,10 @@ add_shortcode('am_chat', function(){
           audio.addEventListener('ended', () => {
             if (micInterval) clearInterval(micInterval);
             if (overlay.style.display !== 'none' && !micMuted) startMicViz();
-            if (overlay.style.display === 'grid' && !micMuted && (!mediaRecorder || mediaRecorder.state !== 'recording')) {
-              startRecognition();
+            if (overlay.style.display === 'grid' && !micMuted) {
+              if (sr) { try { sr.start(); } catch(_){} }
+              else if (mediaRecorder && mediaRecorder.state === 'paused') { try { mediaRecorder.resume(); } catch(_){} }
+              else { startRecognition(); }
             }
             currentAudio = null;
             resolve();
@@ -471,7 +497,32 @@ add_shortcode('am_chat', function(){
 
       async function startRecognition(){
         lang = document.querySelector('.openai-chat-container')?.dataset?.sttLang || 'en-US';
-        await startWhisperRecognition();
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SR){
+          if (!micAnalyser) await initMicMonitor();
+          if (!micMuted) startMicViz();
+          if (sr){ try { sr.stop(); } catch(_){} }
+          sr = new SR();
+          sr.lang = lang;
+          sr.continuous = true;
+          sr.interimResults = false;
+          sr.onresult = async (e) => {
+            const transcript = Array.from(e.results).map(r=> r[0].transcript).join(' ').trim();
+            if (transcript){
+              setState('Processing');
+              await askAssistant(transcript, true);
+            }
+          };
+          sr.onend = () => {
+            if (overlay.style.display === 'grid' && !micMuted) {
+              try { sr.start(); } catch(_){}
+            }
+          };
+          try { sr.start(); } catch(_){}
+          setState('Listening');
+        } else {
+          await startWhisperRecognition();
+        }
       }
 
       btn.addEventListener('click', function(){
@@ -498,9 +549,10 @@ add_shortcode('am_chat', function(){
             try { mediaRecorder.pause(); } catch(_) {}
           }
         } else {
-          if (mediaRecorder && mediaRecorder.state === 'paused'){
+          if (sr){ try { sr.start(); } catch(_){} }
+          else if (mediaRecorder && mediaRecorder.state === 'paused'){
             try { mediaRecorder.resume(); } catch(_) {}
-          } else if (!mediaRecorder && !sr){
+          } else if (!mediaRecorder){
             startRecognition();
           }
         }
@@ -520,20 +572,9 @@ add_shortcode('am_chat', function(){
         overlay.style.display = 'none';
         btn.style.display = 'inline-block';
         setState('Idle');
-        try { mediaRecorder && mediaRecorder.stop(); } catch(_) {}
-        try { sr && sr.stop(); } catch(_) {}
-        if (micVizInterval){ clearInterval(micVizInterval); micVizInterval=null; }
-        if (ttsVizInterval){ clearInterval(ttsVizInterval); ttsVizInterval=null; }
-        if (ttsCtx){ ttsCtx.close().catch(()=>{}); ttsCtx=null; }
+        stopAllMedia();
         if (avatarImg) avatarImg.style.transform='scale(1)';
         if (levelCircle) levelCircle.style.transform='translateX(-50%) scale(1)';
-        if (micStream){ micStream.getTracks().forEach(t=>t.stop()); micStream=null; }
-        if (mediaRecorder && mediaRecorder.stream){ mediaRecorder.stream.getTracks().forEach(t=> t.stop()); }
-        mediaRecorder = null;
-        pendingChunk = null;
-        if (micCtx){ try{ micCtx.close(); } catch(_){} micCtx=null; micAnalyser=null; }
-        if (ttsController) { ttsController.abort(); ttsController = null; }
-        if (currentAudio) { currentAudio.pause(); currentAudio.currentTime = 0; currentAudio = null; }
         micMuted = false;
         if (muteBtn){
           muteBtn.classList.remove('muted');
