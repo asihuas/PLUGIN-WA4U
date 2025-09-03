@@ -29,6 +29,7 @@
         toggle.addEventListener('click', () => {
           const expanded = disclaimer.classList.toggle('expanded');
           full.style.display = expanded ? '' : 'none';
+          if (root.AM_positionScrollBtn) root.AM_positionScrollBtn();
         });
       }
     }
@@ -78,7 +79,6 @@
         position: 'fixed',
         left: '50%',
         transform: 'translatex(-50%)',
-        bottom: '80px',
         display: 'none',
         width: '40px',
         height: '40px',
@@ -109,6 +109,14 @@
       goEndBtn.dataset.cid = convUid || Math.random().toString(36).slice(2);
       document.body.appendChild(goEndBtn);
 
+      function positionBtn() {
+        const form = root.querySelector('.openai-chat-form');
+        const h = form ? form.offsetHeight : 0;
+        goEndBtn.style.bottom = `${h + 16}px`;
+      }
+      positionBtn();
+      window.addEventListener('resize', positionBtn);
+
       goEndBtn.addEventListener('click', () => {
         userLocked = false;
         scrollToBottom(true);
@@ -116,7 +124,8 @@
       });
 
       function updateState() {
-        userLocked = !isNearBottom();
+        const scrollable = scrollerEl.scrollHeight > scrollerEl.clientHeight + EPS;
+        userLocked = scrollable && !isNearBottom();
         goEndBtn.style.display = userLocked ? 'block' : 'none';
       }
 
@@ -132,9 +141,8 @@
 
         if (!userLocked) {
           scrollToBottom(true);
-        } else {
-          goEndBtn.style.display = 'grid';
         }
+        updateState();
       });
       mo.observe(messagesEl, { childList: true, subtree: true });
 
@@ -144,10 +152,11 @@
       root.AM_userLocked     = () => userLocked;
       root.AM_setUserLocked  = (val) => { userLocked = !!val; };
       root.AM_scrollBtn      = goEndBtn;
+      root.AM_positionScrollBtn = positionBtn;
 
-      // Estado inicial: no auto-scroll al cargar
-      userLocked = true;
-      goEndBtn.style.display = 'block';
+      // Estado inicial: no mostrar hasta que sea necesario
+      userLocked = false;
+      updateState();
     })();
 
     // -----------------------
@@ -511,15 +520,18 @@ messagesEl.addEventListener('click', async (e) => {
   if (!btn.dataset.playIcon && img) btn.dataset.playIcon = img.src;
 
   // Stop playback if already playing
-  if (btn.classList.contains('playing') && btn._audio) {
-    try {
-      btn._audio.pause();
-      btn._audio.currentTime = 0;
-    } catch (_) {}
-    if (btn._audioUrl) {
+  if (btn.classList.contains('playing')) {
+    try { if (btn._audio) { btn._audio.pause(); btn._audio.currentTime = 0; } } catch (_) {}
+    if (btn._audios) {
+      btn._audios.forEach(({audio, url}) => {
+        try { audio.pause(); audio.currentTime = 0; } catch (_) {}
+        if (url) { try { URL.revokeObjectURL(url); } catch (_) {} }
+      });
+    } else if (btn._audioUrl) {
       try { URL.revokeObjectURL(btn._audioUrl); } catch (_) {}
     }
     btn._audio = null;
+    btn._audios = null;
     btn._audioUrl = null;
     btn.classList.remove('playing');
     btn.disabled = false;
@@ -552,121 +564,99 @@ messagesEl.addEventListener('click', async (e) => {
       throw new Error('No text content to convert to speech');
     }
 
-    // Use voice ID as-is - let the server handle any cleaning
-    const payload = {
-      text: cleanText,
-      voice_id: voiceId || '', // Send exactly what we have
-      agent_id: agentId
-    };
+    const parts = splitForTts(cleanText, 400);
+    const audios = [];
 
-    console.log('TTS Debug - Sending payload:', payload);
-    
-    const r = await fetch(window.AM_REST + 'am/v1/tts', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-WP-Nonce': window.AM_NONCE
-      },
-      body: JSON.stringify(payload)
-    });
+    for (const part of parts) {
+      const payload = {
+        text: part,
+        voice_id: voiceId || '',
+        agent_id: agentId
+      };
 
-    console.log('TTS Debug - Response status:', r.status, r.statusText);
+      console.log('TTS Debug - Sending payload:', payload);
 
-    if (!r.ok) {
-      const errorText = await r.text();
-      console.error('TTS API Error:', r.status, errorText);
-      
-      // Try to parse error details
-      let errorMsg = `HTTP ${r.status}`;
-      try {
-        const errorData = JSON.parse(errorText);
-        if (errorData.message) errorMsg = errorData.message;
-        else if (errorData.error) errorMsg = errorData.error;
-      } catch (e) {
-        if (errorText.length > 0 && errorText.length < 200) {
-          errorMsg = errorText;
+      const r = await fetch(window.AM_REST + 'am/v1/tts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-WP-Nonce': window.AM_NONCE
+        },
+        body: JSON.stringify(payload)
+      });
+
+      console.log('TTS Debug - Response status:', r.status, r.statusText);
+
+      if (!r.ok) {
+        const errorText = await r.text();
+        console.error('TTS API Error:', r.status, errorText);
+
+        let errorMsg = `HTTP ${r.status}`;
+        try {
+          const errorData = JSON.parse(errorText);
+          if (errorData.message) errorMsg = errorData.message;
+          else if (errorData.error) errorMsg = errorData.error;
+        } catch (e) {
+          if (errorText.length > 0 && errorText.length < 200) {
+            errorMsg = errorText;
+          }
         }
+
+        throw new Error(`TTS API error: ${errorMsg}`);
       }
-      
-      throw new Error(`TTS API error: ${errorMsg}`);
+
+      const blob = await r.blob();
+      console.log('TTS Debug - Blob size:', blob.size, 'bytes');
+      if (blob.size < 100) {
+        throw new Error('Received invalid audio data (too small)');
+      }
+      const audioUrl = URL.createObjectURL(blob);
+      const audio = new Audio(audioUrl);
+      audios.push({audio, url: audioUrl});
     }
-
-    // Check content type
-    const contentType = r.headers.get('content-type') || '';
-    console.log('TTS Debug - Content-Type:', contentType);
-
-    // Get the blob
-    const blob = await r.blob();
-    console.log('TTS Debug - Blob size:', blob.size, 'bytes');
-
-    if (blob.size < 100) {
-      throw new Error('Received invalid audio data (too small)');
-    }
-
-    // Create and play audio
-    const audioUrl = URL.createObjectURL(blob);
-    const audio = new Audio(audioUrl);
-    btn._audio = audio;
-    btn._audioUrl = audioUrl;
 
     const reset = () => {
       btn.classList.remove('playing');
       btn.classList.remove('loading');
       btn.disabled = false;
       if (img) img.src = btn.dataset.playIcon || img.src;
-      if (btn._audioUrl) {
-        try { URL.revokeObjectURL(btn._audioUrl); } catch (_) {}
+      if (btn._audios) {
+        btn._audios.forEach(({audio, url}) => {
+          try { audio.pause(); audio.currentTime = 0; } catch (_) {}
+          if (url) { try { URL.revokeObjectURL(url); } catch (_) {} }
+        });
       }
       btn._audio = null;
-      btn._audioUrl = null;
+      btn._audios = null;
       btn._reset = null;
     };
     btn._reset = reset;
+    btn._audios = audios;
 
-    // Enhanced audio event handlers
-    audio.addEventListener('loadstart', () => console.log('TTS Debug - Audio loading started'));
-    audio.addEventListener('canplay', () => console.log('TTS Debug - Audio ready to play'));
-    audio.addEventListener('error', (e) => {
-      console.error('TTS Debug - Audio error:', {
-        error: e,
-        audioError: audio.error,
-        networkState: audio.networkState,
-        readyState: audio.readyState
+    const playSeq = (idx) => {
+      if (idx >= audios.length) { reset(); return; }
+      const {audio, url} = audios[idx];
+      btn._audio = audio;
+      audio.addEventListener('error', () => {
+        console.error('TTS Debug - Audio error while playing chunk');
+        reset();
+      }, {once:true});
+      audio.addEventListener('ended', () => {
+        playSeq(idx + 1);
+      }, {once:true});
+      audio.play().catch((err) => {
+        console.error('TTS Debug - play error', err);
+        reset();
       });
+    };
 
-      reset();
-
-      let errorMsg = 'Audio playback failed';
-      if (audio.error) {
-        switch(audio.error.code) {
-          case MediaError.MEDIA_ERR_DECODE:
-            errorMsg = 'Audio format not supported by browser';
-            break;
-          case MediaError.MEDIA_ERR_NETWORK:
-            errorMsg = 'Network error during audio loading';
-            break;
-          case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
-            errorMsg = 'Audio source not supported';
-            break;
-        }
-      }
-      alert(`Could not play audio: ${errorMsg}`);
-    });
-
-    audio.addEventListener('ended', () => {
-      console.log('TTS Debug - Audio playback ended');
-      reset();
-    });
-
-    console.log('TTS Debug - Starting audio playback...');
-    await audio.play();
-    console.log('TTS Debug - Audio playback started successfully');
+    playSeq(0);
 
     btn.classList.remove('loading');
     btn.classList.add('playing');
     btn.disabled = false;
     if (img) img.src = 'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/icons/stop-circle.svg';
-    
+
   } catch (err) {
     console.error('TTS Debug - Error:', err);
     if (typeof btn._reset === 'function') {
@@ -696,6 +686,19 @@ messagesEl.addEventListener('click', async (e) => {
 
 
     // ---- helpers ----
+function splitForTts(text, maxLen = 400) {
+  const parts = [];
+  let remaining = String(text || '').trim();
+  while (remaining.length > maxLen) {
+    let idx = remaining.lastIndexOf('.', maxLen);
+    if (idx < maxLen * 0.6) idx = remaining.lastIndexOf(' ', maxLen);
+    if (idx <= 0) idx = maxLen;
+    parts.push(remaining.slice(0, idx).trim());
+    remaining = remaining.slice(idx).trim();
+  }
+  if (remaining) parts.push(remaining);
+  return parts;
+}
 function unquoteSmart(s) {
   s = String(s || "").trim();
   s = s.replace(/^[“”"']+/, "").replace(/[“”"']+$/, "");
