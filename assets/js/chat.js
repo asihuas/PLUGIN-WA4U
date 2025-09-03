@@ -22,13 +22,10 @@
 
     const disclaimer = root.querySelector('.am-coach-note');
     if (disclaimer) {
-      const full = disclaimer.querySelector('.am-coach-full');
       const toggle = disclaimer.querySelector('.am-coach-toggle');
-      if (full && toggle) {
-        full.style.display = 'none';
+      if (toggle) {
         toggle.addEventListener('click', () => {
-          const expanded = disclaimer.classList.toggle('expanded');
-          full.style.display = expanded ? '' : 'none';
+          disclaimer.classList.toggle('expanded');
           if (root.AM_positionScrollBtn) root.AM_positionScrollBtn();
         });
       }
@@ -55,8 +52,8 @@
     (function setupAutoScroll() {
       if (!scrollerEl) return;
 
-      const EPS = 64; // margen px para considerar "cerca del fondo"
-      let userLocked = !!convUid;
+        const EPS = 64; // margen px para considerar "cerca del fondo"
+        let userLocked = !!convUid;
 
       function isNearBottom() {
         const remaining = scrollerEl.scrollHeight - scrollerEl.clientHeight - scrollerEl.scrollTop;
@@ -78,7 +75,7 @@
       Object.assign(goEndBtn.style, {
         position: 'fixed',
         left: '50%',
-        transform: 'translatex(-50%)',
+        transform: 'translateX(-50%)',
         display: 'none',
         width: '40px',
         height: '40px',
@@ -88,7 +85,9 @@
         background: '#fff',
         cursor: 'pointer',
         zIndex: '9999',
-        padding: '0'
+        padding: '0',
+        alignItems: 'center',
+        justifyContent: 'center'
       });
 
       const iconImg = document.createElement('img');
@@ -97,11 +96,7 @@
       iconImg.width = 20;
       iconImg.height = 20;
       Object.assign(iconImg.style, {
-        pointerEvents: 'none',
-        display: 'block',
-        margin: '0 auto',
-        position: 'relative',
-        top: '10px'
+        pointerEvents: 'none'
       });
       goEndBtn.appendChild(iconImg);
 
@@ -126,25 +121,22 @@
       function updateState() {
         const scrollable = scrollerEl.scrollHeight > scrollerEl.clientHeight + EPS;
         userLocked = scrollable && !isNearBottom();
-        goEndBtn.style.display = userLocked ? 'block' : 'none';
+          goEndBtn.style.display = userLocked ? 'flex' : 'none';
       }
 
       scrollerEl.addEventListener('scroll', updateState, { passive: true });
 
       // Observar inserción de nodos en el contenedor de mensajes
-      const mo = new MutationObserver((mutations) => {
-        let added = false;
-        for (const m of mutations) {
-          if (m.addedNodes && m.addedNodes.length) { added = true; break; }
-        }
-        if (!added) return;
+        const mo = new MutationObserver((mutations) => {
+          let added = false;
+          for (const m of mutations) {
+            if (m.addedNodes && m.addedNodes.length) { added = true; break; }
+          }
+          if (!added) return;
 
-        if (!initialLoad && !userLocked) {
-          scrollToBottom(true);
-        }
-        updateState();
-      });
-      mo.observe(messagesEl, { childList: true, subtree: true });
+          updateState();
+        });
+        mo.observe(messagesEl, { childList: true, subtree: true });
 
       // Helpers públicos por instancia
       root.AM_isNearBottom   = isNearBottom;
@@ -198,10 +190,10 @@
       let micStream = null;
 
       function updateVoiceBtn(state) {
-        voiceBtn.classList.toggle('listening', state === 'listening');
-        voiceBtn.innerHTML = state === 'listening'
-          ? '<img src="https://wa4u.ai/wp-content/uploads/2025/09/record-off.svg" alt="Stop" width="20" height="20">'
-          : '<img src="https://wa4u.ai/wp-content/uploads/2025/08/mic-on.svg" alt="Mic" width="20" height="20">';
+          voiceBtn.classList.toggle('listening', state === 'listening');
+          voiceBtn.innerHTML = state === 'listening'
+            ? '<img src="https://wa4u.ai/wp-content/uploads/2025/09/record-off.svg" alt="Stop" width="20" height="20">'
+            : '<img src="https://wa4u.ai/wp-content/uploads/2025/09/STOP-RECORDING.svg" alt="Mic" width="20" height="20">';
         if (sendBtn) sendBtn.style.display = state === 'listening' ? 'none' : '';
         if (callBtn) callBtn.style.display = state === 'listening' ? 'none' : '';
       }
@@ -370,12 +362,11 @@
       const text = (input.value || '').trim();
       if (!text) return;
 
-      appendBubble('user', escapeHtml(text));
-      if (root.AM_setUserLocked) root.AM_setUserLocked(false);
-      if (root.AM_scrollToBottom) root.AM_scrollToBottom(true);
-      input.value = '';
-      autosize();
-      if (toggleCallBtn) toggleCallBtn();
+        appendBubble('user', escapeHtml(text));
+        if (root.AM_setUserLocked) root.AM_setUserLocked(false);
+        input.value = '';
+        autosize();
+        if (toggleCallBtn) toggleCallBtn();
 
       const typing = appendBubble('ai', '<div class="typing-indicator"><span></span><span></span><span></span></div>', false);
 
@@ -819,12 +810,9 @@ function extractSuggestions(raw, replyOrRaw) {
 
 
 
-    function appendBubble(role, html, withPlay, skipScroll = false) {
-      // Check if the user was near the bottom before adding the bubble
-      const shouldStick = root.AM_isNearBottom ? root.AM_isNearBottom() : true;
-
-      const wrap = document.createElement('div');
-      wrap.className = 'openai-bubble ' + (role === 'user' ? 'user' : 'ai');
+      function appendBubble(role, html, withPlay, skipScroll = false) {
+        const wrap = document.createElement('div');
+        wrap.className = 'openai-bubble ' + (role === 'user' ? 'user' : 'ai');
 
       const avatar = document.createElement('div');
       avatar.className = 'avatar';
@@ -856,17 +844,15 @@ function extractSuggestions(raw, replyOrRaw) {
         wrap.appendChild(feedbackRow);
       }
 
-      messagesEl.appendChild(wrap);
+        messagesEl.appendChild(wrap);
 
-      if (role === 'ai') {
-        if (!initialLoad && !skipScroll && root.AM_setUserLocked) root.AM_setUserLocked(false);
-        if (!initialLoad && !skipScroll && root.AM_scrollToBottom) root.AM_scrollToBottom(true);
-      } else {
-        if (!skipScroll && root.AM_setUserLocked) root.AM_setUserLocked(false);
-        if (!skipScroll && root.AM_scrollToBottom) root.AM_scrollToBottom(true);
+        if (role === 'ai') {
+          if (!initialLoad && !skipScroll && root.AM_setUserLocked) root.AM_setUserLocked(false);
+        } else {
+          if (!skipScroll && root.AM_setUserLocked) root.AM_setUserLocked(false);
+        }
+        return wrap;
       }
-      return wrap;
-    }
 
     function addFeedbackButtons(row, replyText, msgId) {
       if (!row || row.__fbMounted) return;
@@ -957,15 +943,12 @@ function extractSuggestions(raw, replyOrRaw) {
 
 
 
-    async function typeInto(el, html, opts = {}) {
-      const delayMs = typeof opts.delayMs === 'number' ? opts.delayMs : 12;
-      const charsPerTick = typeof opts.charsPerTick === 'number' ? opts.charsPerTick : 2;
+      async function typeInto(el, html, opts = {}) {
+        const delayMs = typeof opts.delayMs === 'number' ? opts.delayMs : 12;
+        const charsPerTick = typeof opts.charsPerTick === 'number' ? opts.charsPerTick : 2;
 
-      // ¿estabas al fondo al comenzar?
-      const stick = root.AM_isNearBottom ? root.AM_isNearBottom() : true;
-
-      const safe = String(html || '').replace(/\n/g, '<br>');
-      const tokens = safe.split(/(<br>)/g);
+        const safe = String(html || '').replace(/\n/g, '<br>');
+        const tokens = safe.split(/(<br>)/g);
 
       el.innerHTML = '';
       let textNode = document.createTextNode('');
@@ -977,11 +960,10 @@ function extractSuggestions(raw, replyOrRaw) {
 
       for (const t of tokens) {
         if (t === '<br>') {
-          el.appendChild(document.createElement('br'));
-          textNode = document.createTextNode('');
-          el.appendChild(textNode);
-          if (stick && root.AM_scrollToBottom) root.AM_scrollToBottom(false);
-          continue;
+            el.appendChild(document.createElement('br'));
+            textNode = document.createTextNode('');
+            el.appendChild(textNode);
+            continue;
         }
         let i = 0;
         while (i < t.length) {
@@ -990,14 +972,13 @@ function extractSuggestions(raw, replyOrRaw) {
             i = t.length;
             break;
           }
-          const next = t.slice(i, i + charsPerTick);
-          textNode.nodeValue += next;
-          i += next.length;
+            const next = t.slice(i, i + charsPerTick);
+            textNode.nodeValue += next;
+            i += next.length;
 
-          await new Promise((r) => setTimeout(r, delayMs));
-          if (stick && root.AM_scrollToBottom) root.AM_scrollToBottom(false);
+            await new Promise((r) => setTimeout(r, delayMs));
+          }
         }
-      }
 
       try { el.removeEventListener('click', skipHandler, { once: true }); } catch (_) {}
     }
