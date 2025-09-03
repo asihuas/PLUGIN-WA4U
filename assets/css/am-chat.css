@@ -772,10 +772,11 @@ ul.am-agent-list li:first-child {
 }
 
 .am-coach-note .am-coach-short {
-  flex: 1;
+  flex: 0 1 auto;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: calc(100% - 34px);
 }
 
 .am-coach-note .am-coach-toggle {
@@ -787,8 +788,8 @@ ul.am-agent-list li:first-child {
 }
 
 .am-coach-note .am-coach-icon {
-  width: 10px;
-  height: 10px;
+  width: 30px;
+  height: 30px;
   transition: transform .2s;
 }
 

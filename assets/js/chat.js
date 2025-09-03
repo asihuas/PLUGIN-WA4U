@@ -139,7 +139,7 @@
         }
         if (!added) return;
 
-        if (!userLocked) {
+        if (!initialLoad && !userLocked) {
           scrollToBottom(true);
         }
         updateState();
@@ -859,12 +859,11 @@ function extractSuggestions(raw, replyOrRaw) {
       messagesEl.appendChild(wrap);
 
       if (role === 'ai') {
-        if (!initialLoad) {
-          if (root.AM_setUserLocked) root.AM_setUserLocked(false);
-          if (root.AM_scrollToBottom) root.AM_scrollToBottom(true);
-        }
-      } else if (shouldStick && root.AM_scrollToBottom) {
-        root.AM_scrollToBottom(true);
+        if (!initialLoad && root.AM_setUserLocked) root.AM_setUserLocked(false);
+        if (!initialLoad && root.AM_scrollToBottom) root.AM_scrollToBottom(true);
+      } else {
+        if (root.AM_setUserLocked) root.AM_setUserLocked(false);
+        if (root.AM_scrollToBottom) root.AM_scrollToBottom(true);
       }
       return wrap;
     }
