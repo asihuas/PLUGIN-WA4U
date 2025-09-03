@@ -290,8 +290,30 @@ add_shortcode('am_chat', function(){
         if (root && root.AM_scrollToBottom) root.AM_scrollToBottom(true);
       }
 
+      function splitForTts(text, maxLen = 400){
+        const parts = [];
+        let remaining = String(text || '').trim();
+        while (remaining.length > maxLen){
+          let idx = remaining.lastIndexOf('.', maxLen);
+          if (idx < maxLen * 0.6) idx = remaining.lastIndexOf(' ', maxLen);
+          if (idx <= 0) idx = maxLen;
+          parts.push(remaining.slice(0, idx).trim());
+          remaining = remaining.slice(idx).trim();
+        }
+        if (remaining) parts.push(remaining);
+        return parts;
+      }
+
       let ttsController = null;
+      function stopCurrentTts(){
+        if (currentAudio && !currentAudio.paused){
+          try { currentAudio.pause(); currentAudio.currentTime = 0; } catch(_){}
+        }
+        if (ttsController){ try { ttsController.abort(); } catch(_){} }
+        currentAudio = null;
+      }
       async function ttsPlay(text){
+        stopCurrentTts();
         if (micVizInterval){ clearInterval(micVizInterval); micVizInterval=null; }
         if (sr){ try { sr.stop(); } catch(_){} }
         if (mediaRecorder && mediaRecorder.state === 'recording'){ try { mediaRecorder.pause(); } catch(_){} }
@@ -307,7 +329,7 @@ add_shortcode('am_chat', function(){
           signal: ttsController.signal
         });
 
-        if (!r.ok || !r.body) return;
+        if (!r.ok || !r.body) return false;
 
         const mediaSource = new MediaSource();
         const audio = new Audio();
@@ -336,6 +358,7 @@ add_shortcode('am_chat', function(){
 
         if (!micAnalyser) await initMicMonitor();
         let micInterval;
+        let interrupted = false;
         if (micAnalyser) {
           let over = 0;
           micInterval = setInterval(()=>{
@@ -343,10 +366,8 @@ add_shortcode('am_chat', function(){
             if (lvl > 0.15) {
               over++;
               if (over >= 3 && !audio.paused) {
-                audio.pause();
-                audio.currentTime = 0;
-                if (ttsController) ttsController.abort();
-                currentAudio = null;
+                interrupted = true;
+                stopCurrentTts();
                 clearInterval(micInterval);
                 setState('Listening');
                 if (!micMuted) startMicViz();
@@ -359,7 +380,7 @@ add_shortcode('am_chat', function(){
             } else {
               over = 0;
             }
-            if (audio.paused) clearInterval(micInterval);
+            if (!currentAudio) clearInterval(micInterval);
           }, 100);
         }
 
@@ -377,6 +398,7 @@ add_shortcode('am_chat', function(){
           }, { once: true });
           audio.play().catch(() => { resolve(); });
         });
+        return !interrupted;
       }
 
       async function askAssistant(text, forceAudio = false){
@@ -411,7 +433,11 @@ add_shortcode('am_chat', function(){
           }
           if (window.AM_AUTO_AUDIO || forceAudio) {
             setState('Speaking...');
-            await ttsPlay(reply);
+            const parts = splitForTts(reply, 400);
+            for (const part of parts) {
+              const cont = await ttsPlay(part);
+              if (!cont) break;
+            }
             setState('Listening');
           } else {
             setState('Idle');
@@ -468,6 +494,7 @@ add_shortcode('am_chat', function(){
       }
 
       async function startWhisperRecognition(){
+        stopCurrentTts();
         if (!navigator.mediaDevices || !window.MediaRecorder) {
           logMessage('system', 'MediaRecorder not supported in this browser.');
           return;
@@ -496,6 +523,7 @@ add_shortcode('am_chat', function(){
       }
 
       async function startRecognition(){
+        stopCurrentTts();
         lang = document.querySelector('.openai-chat-container')?.dataset?.sttLang || 'en-US';
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (SR){

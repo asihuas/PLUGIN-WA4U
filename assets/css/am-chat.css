@@ -759,23 +759,30 @@ ul.am-agent-list li:first-child {
   40% { opacity: 1; transform: translateY(-3px); }
 }
 
+
 .am-coach-note {
   font-size: 12px;
   color: #555;
   margin-top: 6px;
   display: flex;
-  flex-wrap: wrap;
   gap: 4px;
   align-items: center;
+  flex-wrap: nowrap;
+  width: 100%;
+}
+
+.am-coach-note .am-coach-short {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .am-coach-note .am-coach-toggle {
   background: none;
   border: none;
-  cursor: pointer;
-  line-height: 1;
   padding: 0;
-  display: inline-flex;
+  display: flex;
   align-items: center;
 }
 
@@ -795,4 +802,10 @@ ul.am-agent-list li:first-child {
 
 .am-coach-note.expanded .am-coach-icon {
   transform: rotate(180deg);
+}
+
+/* Allow assistant name to wrap on multiple lines */
+.am-assistant-header-only .assistant-name {
+  white-space: normal;
+  word-break: break-word;
 }
