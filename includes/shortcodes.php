@@ -86,7 +86,7 @@ add_shortcode('am_chat', function(){
       <div class="openai-input-group">
         <div class="openai-input-inner">
           <textarea id="openai-message-input" name="message" rows="1" required placeholder="Type your message…"></textarea>
-          <button type="button" id="openai-voice-btn" class="voice-btn" aria-label="Start voice input"><img src="https://wa4u.ai/wp-content/uploads/2025/08/mic-on.svg" alt="Mic"></button>
+          <button type="button" id="openai-voice-btn" class="voice-btn" aria-label="Start voice input"><img src="https://wa4u.ai/wp-content/uploads/2025/09/STOP-RECORDING.svg" alt="Mic"></button>
           <button class="send" type="submit"><img src="https://wa4u.ai/wp-content/uploads/2025/08/send.svg" alt="Send"></button>
         </div>
         <button type="button" id="am-voice-call-btn-<?php echo esc_attr($uid); ?>" class="am-voice-call-btn"><svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -96,8 +96,7 @@ add_shortcode('am_chat', function(){
 </button>
       </div>
         <p class="am-coach-note">
-          <span class="am-coach-short">This is an AI-based life coach, trained on modern psychology…</span>
-          <span class="am-coach-full"> It’s not therapy or a substitute for professional care. But it can help you move forward — one real step at a time.</span>
+          <span class="am-coach-text">This is an AI-based life coach, trained on modern psychology. It’s not therapy or a substitute for professional care. But it can help you move forward — one real step at a time.</span>
           <button type="button" class="am-coach-toggle" aria-label="Toggle disclaimer"><img src="https://wa4u.ai/wp-content/uploads/2025/08/nav-arrow-down.svg" alt="Toggle" class="am-coach-icon"></button>
         </p>
       <input type="hidden" name="agent_id" value="<?php echo esc_attr($agent_id); ?>">

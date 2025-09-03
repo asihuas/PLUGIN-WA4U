@@ -769,14 +769,18 @@ ul.am-agent-list li:first-child {
   align-items: center;
   flex-wrap: nowrap;
   width: 100%;
+  max-width: 350px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
-.am-coach-note .am-coach-short {
+.am-coach-note .am-coach-text {
   flex: 1 1 auto;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: calc(100% - 34px);
 }
 
 .am-coach-note .am-coach-toggle {
@@ -785,6 +789,10 @@ ul.am-agent-list li:first-child {
   padding: 0;
   display: flex;
   align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
 }
 
 .am-coach-note .am-coach-icon {
@@ -793,21 +801,13 @@ ul.am-agent-list li:first-child {
   transition: transform .2s;
 }
 
-.am-coach-note .am-coach-full {
-  display: none;
-  flex: 1 1 auto;
-}
-
 .am-coach-note.expanded {
   align-items: flex-start;
 }
 
-.am-coach-note.expanded .am-coach-short {
-  display: none;
-}
-
-.am-coach-note.expanded .am-coach-full {
-  display: block;
+.am-coach-note.expanded .am-coach-text {
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
 }
 
 .am-coach-note.expanded .am-coach-icon {
