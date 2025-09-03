@@ -54,7 +54,7 @@ add_shortcode('am_chat', function(){
     $user_name = $cu->display_name ?: $cu->user_login;
     $user_email = $cu->user_email;
   }
-  $form_class = is_user_logged_in() ? 'openai-chat-form' : 'openai-chat-form-logged-out';
+  $form_class = 'openai-chat-form' . (is_user_logged_in() ? '' : ' openai-chat-form-logged-out');
   ob_start(); ?>
   <div id="amc-<?php echo esc_attr($uid); ?>" class="openai-chat-container"
        data-agent-id="<?php echo esc_attr($agent_id); ?>"
