@@ -162,7 +162,7 @@
     // -----------------------
     // Bienvenida (después de montar auto-scroll)
     // -----------------------
-    appendBubble('ai', escapeHtml(welcome), true);
+    appendBubble('ai', escapeHtml(welcome), true, true);
     initialLoad = false;
 
     // -----------------------
@@ -325,7 +325,7 @@
             const cleanedText = it.role === 'user'
               ? escapeHtml(String(it.content || ''))
               : sanitizeReply(String(it.content || ''));
-            const wrap = appendBubble(it.role === 'user' ? 'user' : 'ai', cleanedText, it.role !== 'user');
+            const wrap = appendBubble(it.role === 'user' ? 'user' : 'ai', cleanedText, it.role !== 'user', true);
 
             if (it.role !== 'user') {
               const mid = it.assistant_message_id || it.message_id || it.id;
@@ -819,7 +819,7 @@ function extractSuggestions(raw, replyOrRaw) {
 
 
 
-    function appendBubble(role, html, withPlay) {
+    function appendBubble(role, html, withPlay, skipScroll = false) {
       // Check if the user was near the bottom before adding the bubble
       const shouldStick = root.AM_isNearBottom ? root.AM_isNearBottom() : true;
 
@@ -859,11 +859,11 @@ function extractSuggestions(raw, replyOrRaw) {
       messagesEl.appendChild(wrap);
 
       if (role === 'ai') {
-        if (!initialLoad && root.AM_setUserLocked) root.AM_setUserLocked(false);
-        if (!initialLoad && root.AM_scrollToBottom) root.AM_scrollToBottom(true);
+        if (!initialLoad && !skipScroll && root.AM_setUserLocked) root.AM_setUserLocked(false);
+        if (!initialLoad && !skipScroll && root.AM_scrollToBottom) root.AM_scrollToBottom(true);
       } else {
-        if (root.AM_setUserLocked) root.AM_setUserLocked(false);
-        if (root.AM_scrollToBottom) root.AM_scrollToBottom(true);
+        if (!skipScroll && root.AM_setUserLocked) root.AM_setUserLocked(false);
+        if (!skipScroll && root.AM_scrollToBottom) root.AM_scrollToBottom(true);
       }
       return wrap;
     }

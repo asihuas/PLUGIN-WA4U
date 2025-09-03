@@ -772,7 +772,7 @@ ul.am-agent-list li:first-child {
 }
 
 .am-coach-note .am-coach-short {
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -795,10 +795,19 @@ ul.am-agent-list li:first-child {
 
 .am-coach-note .am-coach-full {
   display: none;
+  flex: 1 1 auto;
+}
+
+.am-coach-note.expanded {
+  align-items: flex-start;
+}
+
+.am-coach-note.expanded .am-coach-short {
+  display: none;
 }
 
 .am-coach-note.expanded .am-coach-full {
-  display: inline;
+  display: block;
 }
 
 .am-coach-note.expanded .am-coach-icon {
